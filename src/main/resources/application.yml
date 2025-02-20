@@ -1,0 +1,37 @@
+#spring.application.name=keycloak
+spring:
+  application:
+    name: keycloak
+  datasource:
+    url: jdbc:postgresql://localhost:5432/vc_database
+    username: admin
+    password: 1234
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id:
+            client-secret:
+            scope:
+              - openid
+              - profile
+              - email
+      resourceserver:
+        jwt:
+          issuer-uri:
+          jwk-set-uri:
+
+server:
+  port: 8080
+
+
+
