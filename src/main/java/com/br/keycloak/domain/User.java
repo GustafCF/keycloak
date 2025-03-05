@@ -19,14 +19,14 @@ public class User implements Serializable {
     private String username;
     private String email;
     private String cpf;
-    private int age;
+    private Integer age;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private Account account;
 
     public User(){}
 
-    public User( String name, String username, String email, String cpf, int age) {
+    public User(String name, String username, String email, String cpf, Integer age) {
         this.name = name;
         this.username = username;
         this.email = email;
@@ -74,11 +74,11 @@ public class User implements Serializable {
         this.cpf = cpf;
     }
 
-    public int getAge() {
+    public Integer getAge() {
         return age;
     }
 
-    public void setAge(int age) {
+    public void setAge(Integer age) {
         this.age = age;
     }
 

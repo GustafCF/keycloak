@@ -1,9 +1,8 @@
-#spring.application.name=keycloak
 spring:
   application:
     name: keycloak
   datasource:
-    url: jdbc:postgresql://localhost:5432/vc_database
+    url: jdbc:postgresql://localhost:5432/accountdb
     username: admin
     password: 1234
   jpa:

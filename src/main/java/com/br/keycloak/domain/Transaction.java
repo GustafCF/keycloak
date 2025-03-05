@@ -1,12 +1,23 @@
 package com.br.keycloak.domain;
 
-import com.br.keycloak.domain.enums.TransactionType;
-import jakarta.persistence.*;
-
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Objects;
+
+import com.br.keycloak.domain.enums.TransactionType;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "TB_TRANSACTION")
@@ -20,17 +31,21 @@ public class Transaction implements Serializable {
     private BigDecimal amount;
     @Enumerated(EnumType.STRING)
     private TransactionType type;
+    @JsonFormat(pattern = "dd-MM-yyyy")
+    private LocalDateTime moment;
 
-    @OneToOne
-    private Account accountNumber;
+    @ManyToOne
+    @JoinColumn(name = "account")
+    private Account account;
 
     public Transaction() {
     }
 
-    public Transaction(BigDecimal amount, TransactionType type, Account accountNumber) {
+    public Transaction(BigDecimal amount, TransactionType type, LocalDateTime moment, Account account) {
         this.amount = amount;
         this.type = type;
-        this.accountNumber = accountNumber;
+        this.moment = LocalDateTime.now();
+        this.account = account;
     }
 
     public Long getId() {
@@ -57,12 +72,20 @@ public class Transaction implements Serializable {
         this.type = type;
     }
 
-    public Account getAccountNumber() {
-        return accountNumber;
+    public LocalDateTime getMoment() {
+        return moment;
     }
 
-    public void setAccountNumber(Account accountNumber) {
-        this.accountNumber = accountNumber;
+    public void setMoment(LocalDateTime moment) {
+        this.moment = moment;
+    }
+
+    public Account getAccount() {
+        return account;
+    }
+
+    public void setAccount(Account account) {
+        this.account = account;
     }
 
     @Override
