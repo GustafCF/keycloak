@@ -33,7 +33,7 @@ public class Account implements Serializable {
     private Long id;
     @Column(name = "number" , unique = true,  nullable = false)
     private String accountNumber;
-    @Column(nullable = false, columnDefinition = "DECIMAL(19,2) DEFAULT 0.00")
+    @Column(nullable = false)
     private BigDecimal balance;
     @JsonFormat(pattern = "dd-MM-yyyy")
     private LocalDateTime created;

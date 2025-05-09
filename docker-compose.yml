@@ -49,6 +49,34 @@ services:
     networks:
       - app-network
 
+  app:
+    container_name: keycloak_api
+    depends_on:
+      - postgres
+      - keycloak
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /usr/src/app
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/accountdb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=1234
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_PROPERTIES_HIBERNATE_JDBC_LOB_NON_CONTEXTUAL_CREATION=true
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID=keycloak
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET=zBse6Urlt3JkLzd6TG5nUuvJmosmrMwR
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_REDIRECT_URI=http://keycloak:8080/login/oauth2/code/keycloak
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE=openid,profile,email
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/api-realm
+    volumes:
+      - ./src/:/usr/src/app
+    networks:
+      - app-network
+
 volumes:
   postgres_data:
     driver: local

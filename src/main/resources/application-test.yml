@@ -26,11 +26,8 @@ spring:
 
         provider:
           keycloak:
-            issuer-uri: http://keycloak:8080/realms/api-realm
+            issuer-uri: http://localhost:9090/realms/api-realm
 
-      resourceserver:
-        jwt:
-          issuer-uri: http://keycloak:8080/realms/api-realm
 server:
   port: 8081
 

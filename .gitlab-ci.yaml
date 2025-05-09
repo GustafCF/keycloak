@@ -1,0 +1,144 @@
+variables:
+  APP_PATH: .
+  DOCKER_TAG_NAME: keycloak-app:latest
+  APP_CONTAINER_NAME: keycloak_api
+  POSTGRES_CONTAINER: postgres_container
+  KEYCLOAK_CONTAINER: keycloak
+  PGADMIN_CONTAINER: pgadmin_container
+  NETWORK_NAME: app-network
+  APP_PORT: "8081:8081"
+  POSTGRES_IMAGE: postgres:15-alpine
+  KEYCLOAK_IMAGE: quay.io/keycloak/keycloak:latest
+  PGADMIN_IMAGE: dpage/pgadmin4:latest
+
+stages:
+  - test
+  - prebuild
+  - build
+  - deploy
+
+Testes_Unitarios:
+  stage: test
+  artifacts:
+    paths:
+      - target/surefire-reports/
+  cache:
+    paths:
+      - .m2/repository
+      - target/
+  image: maven:3.9-eclipse-temurin-21
+  services:
+    - name: postgres:15-alpine
+      alias: postgres
+      command: ["postgres", "-c", "log_statement=all"]
+    - name: quay.io/keycloak/keycloak:latest
+      alias: keycloak
+  variables:
+    POSTGRES_USER: admin
+    POSTGRES_PASSWORD: 1234
+    POSTGRES_DB: accountdb
+    KEYCLOAK_ADMIN: admin
+    KEYCLOAK_ADMIN_PASSWORD: admin
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/accountdb
+    SPRING_DATASOURCE_USERNAME: admin
+    SPRING_DATASOURCE_PASSWORD: 1234
+  script:
+    - |
+      echo "Waiting for PostgreSQL to be ready..."
+      for i in {1..15}; do
+        if docker exec postgres pg_isready -U admin; then
+          echo "PostgreSQL is ready!"
+          break
+        fi
+        echo "Waiting for PostgreSQL... Attempt $i/15"
+        sleep 2
+      done
+    - mvn clean test
+
+Limpar_Ambiente:
+  stage: prebuild
+  only:
+    - /^release_[0-9]+(?:.[0-9]+)+$/
+    - dev
+  dependencies: []
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker container stop $APP_CONTAINER_NAME $KEYCLOAK_CONTAINER $POSTGRES_CONTAINER $PGADMIN_CONTAINER || true
+    - docker container rm $APP_CONTAINER_NAME $KEYCLOAK_CONTAINER $POSTGRES_CONTAINER $PGADMIN_CONTAINER || true
+    - docker image rm $DOCKER_TAG_NAME || true
+    - docker network rm $NETWORK_NAME || true
+    - docker volume rm postgres_data || true
+
+Construir_Imagem:
+  stage: build
+  only:
+    - /^release_[0-9]+(?:.[0-9]+)+$/
+    - dev
+    - main
+  dependencies: []
+  cache:
+    paths:
+      - $APP_PATH
+  script:
+    - docker build --no-cache -t $DOCKER_TAG_NAME .
+
+Implantar_Aplicacao:
+  stage: deploy
+  only:
+    - /^release_[0-9]+(?:.[0-9]+)+$/
+    - dev
+    - main
+  dependencies: []
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker network create $NETWORK_NAME || true
+    - docker volume create postgres_data || true
+
+    - docker run -d --name $POSTGRES_CONTAINER \
+      --network $NETWORK_NAME \
+      -e POSTGRES_USER=admin \
+      -e POSTGRES_PASSWORD=1234 \
+      -e POSTGRES_DB=accountdb \
+      -v postgres_data:/var/lib/postgresql/data \
+      $POSTGRES_IMAGE
+
+    - docker run -d --name $KEYCLOAK_CONTAINER \
+      --network $NETWORK_NAME \
+      -e KC_DB=postgres \
+      -e KC_DB_URL=jdbc:postgresql://$POSTGRES_CONTAINER:5432/accountdb \
+      -e KC_DB_USERNAME=admin \
+      -e KC_DB_PASSWORD=1234 \
+      -e KEYCLOAK_ADMIN=admin \
+      -e KEYCLOAK_ADMIN_PASSWORD=admin \
+      -p 9090:8080 \
+      $KEYCLOAK_IMAGE start-dev
+
+    - docker run -d --name $PGADMIN_CONTAINER \
+      --network $NETWORK_NAME \
+      -e PGADMIN_DEFAULT_EMAIL=admin@admin.com \
+      -e PGADMIN_DEFAULT_PASSWORD=admin \
+      -p 8001:80 \
+      $PGADMIN_IMAGE
+
+    - |
+      echo "Waiting for services to be ready..."
+      sleep 30
+
+    - docker run -d --name $APP_CONTAINER_NAME \
+      --network $NETWORK_NAME \
+      -p $APP_PORT \
+      -e SPRING_DATASOURCE_URL=jdbc:postgresql://$POSTGRES_CONTAINER:5432/accountdb \
+      -e SPRING_DATASOURCE_USERNAME=admin \
+      -e SPRING_DATASOURCE_PASSWORD=1234 \
+      -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \
+      -e SPRING_JPA_PROPERTIES_HIBERNATE_JDBC_LOB_NON_CONTEXTUAL_CREATION=true \
+      -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID=keycloak \
+      -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET=zBse6Urlt3JkLzd6TG5nUuvJmosmrMwR \
+      -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_REDIRECT_URI=http://$KEYCLOAK_CONTAINER:8080/login/oauth2/code/keycloak \
+      -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE=openid,profile,email \
+      -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_ISSUER_URI=http://$KEYCLOAK_CONTAINER:8080/realms/api-realm \
+      $DOCKER_TAG_NAME
